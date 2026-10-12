@@ -148,7 +148,7 @@ class Handler(BaseHTTPRequestHandler):
                         out["tables"] = [r[0] for r in cur.fetchall()]
                         cur.execute("SHOW COLUMNS FROM states")
                         out["states_columns"] = [[r[0], r[1]] for r in cur.fetchall()]
-                        cur.execute("SELECT * FROM states ORDER BY id DESC LIMIT 3")
+                        cur.execute("SELECT * FROM states LIMIT 3")
                         out["states_raw"] = [[s(v) for v in r] for r in cur.fetchall()]
                         if "statistics" in out["tables"]:
                             cur.execute(
