@@ -132,38 +132,27 @@ class Handler(BaseHTTPRequestHandler):
                     return x.isoformat()
                 return str(x)
             out = {}
+            def run(name, sql):
+                try:
+                    with conn.cursor() as cur:
+                        cur.execute(sql)
+                        out[name] = [[s(v) for v in r] for r in cur.fetchall()]
+                except Exception as e:
+                    out[name] = f"ERROR: {e}"
             try:
                 with get_conn() as conn:
-                    with conn.cursor() as cur:
-                        cur.execute("SELECT NOW(), @@global.time_zone, @@session.time_zone")
-                        out["time"] = [s(v) for v in cur.fetchone()]
-                        cur.execute("SELECT COUNT(*), MAX(last_updated) FROM states")
-                        out["states_total"] = [s(v) for v in cur.fetchone()]
-                        cur.execute(
-                            "SELECT entity_id, COUNT(*), MAX(last_updated) FROM states "
-                            "WHERE entity_id LIKE 'sensor.air%' GROUP BY entity_id "
-                            "ORDER BY MAX(last_updated) DESC LIMIT 15")
-                        out["air_sensors"] = [[s(v) for v in r] for r in cur.fetchall()]
-                        cur.execute("SHOW TABLES")
-                        out["tables"] = [r[0] for r in cur.fetchall()]
-                        cur.execute("SHOW COLUMNS FROM states")
-                        out["states_columns"] = [[r[0], r[1]] for r in cur.fetchall()]
-                        cur.execute("SELECT * FROM states LIMIT 3")
-                        out["states_raw"] = [[s(v) for v in r] for r in cur.fetchall()]
-                        if "statistics" in out["tables"]:
-                            cur.execute(
-                                "SELECT statistic_id, MAX(start) FROM statistics "
-                                "WHERE statistic_id LIKE 'sensor.air_quality%%' "
-                                "GROUP BY statistic_id LIMIT 15")
-                            out["statistics_air"] = [[s(v) for v in r] for r in cur.fetchall()]
-                        if "statistics_meta" in out["tables"]:
-                            cur.execute(
-                                "SELECT statistic_id, name, unit_of_measurement FROM statistics_meta "
-                                "WHERE statistic_id LIKE 'sensor.air_quality%%' LIMIT 15")
-                            out["statistics_meta_air"] = [[s(v) for v in r] for r in cur.fetchall()]
+                    run("time", "SELECT NOW(), @@global.time_zone, @@session.time_zone")
+                    run("tables", "SHOW TABLES")
+                    for t in ("states", "states_meta", "statistics", "statistics_meta"):
+                        if t in [r[0] for r in out.get("tables", [])]:
+                            run(f"{t}_columns", f"SHOW COLUMNS FROM {t}")
+                    run("states_raw", "SELECT * FROM states LIMIT 3")
+                    run("states_meta_raw", "SELECT * FROM states_meta LIMIT 3")
+                    run("statistics_raw", "SELECT * FROM statistics LIMIT 3")
+                    run("statistics_meta_raw", "SELECT * FROM statistics_meta LIMIT 3")
                 self._json(200, out)
             except Exception as e:
-                self._json(500, {"error": str(e)})
+                self._json(500, {"error": str(e), "partial": out})
             return
         self._json(404, {"error": "not found"})
 
