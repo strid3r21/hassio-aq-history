@@ -144,10 +144,23 @@ class Handler(BaseHTTPRequestHandler):
                             "WHERE entity_id LIKE 'sensor.air%' GROUP BY entity_id "
                             "ORDER BY MAX(last_updated) DESC LIMIT 15")
                         out["air_sensors"] = [[s(v) for v in r] for r in cur.fetchall()]
-                        cur.execute(
-                            "SELECT entity_id, state, last_updated FROM states "
-                            "ORDER BY last_updated DESC LIMIT 5")
-                        out["newest_rows"] = [[s(v) for v in r] for r in cur.fetchall()]
+                        cur.execute("SHOW TABLES")
+                        out["tables"] = [r[0] for r in cur.fetchall()]
+                        cur.execute("SHOW COLUMNS FROM states")
+                        out["states_columns"] = [[r[0], r[1]] for r in cur.fetchall()]
+                        cur.execute("SELECT * FROM states ORDER BY id DESC LIMIT 3")
+                        out["states_raw"] = [[s(v) for v in r] for r in cur.fetchall()]
+                        if "statistics" in out["tables"]:
+                            cur.execute(
+                                "SELECT statistic_id, MAX(start) FROM statistics "
+                                "WHERE statistic_id LIKE 'sensor.air_quality%%' "
+                                "GROUP BY statistic_id LIMIT 15")
+                            out["statistics_air"] = [[s(v) for v in r] for r in cur.fetchall()]
+                        if "statistics_meta" in out["tables"]:
+                            cur.execute(
+                                "SELECT statistic_id, name, unit_of_measurement FROM statistics_meta "
+                                "WHERE statistic_id LIKE 'sensor.air_quality%%' LIMIT 15")
+                            out["statistics_meta_air"] = [[s(v) for v in r] for r in cur.fetchall()]
                 self._json(200, out)
             except Exception as e:
                 self._json(500, {"error": str(e)})
