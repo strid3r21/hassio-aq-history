@@ -53,14 +53,15 @@ def get_conn():
 
 
 def fetch_points(entity_id, hours, max_points):
-    since = datetime.now(timezone.utc) - timedelta(hours=hours)
+    since_ts = time.time() - hours * 3600
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT last_updated, state FROM states "
-                "WHERE entity_id = %s AND last_updated >= %s "
-                "ORDER BY last_updated",
-                (entity_id, since),
+                "SELECT st.last_updated_ts, st.state FROM states st "
+                "JOIN states_meta sm ON sm.metadata_id = st.metadata_id "
+                "WHERE sm.entity_id = %s AND st.last_updated_ts >= %s "
+                "ORDER BY st.last_updated_ts",
+                (entity_id, since_ts),
             )
             rows = cur.fetchall()
     pts = []
@@ -69,7 +70,7 @@ def fetch_points(entity_id, hours, max_points):
             v = float(state)
         except (TypeError, ValueError):
             continue
-        pts.append([int(ts.timestamp() * 1000), v])
+        pts.append([int(ts * 1000), v])
     if len(pts) > max_points:
         step = len(pts) / max_points
         pts = [pts[int(i * step)] for i in range(max_points)]
