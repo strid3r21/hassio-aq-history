@@ -124,6 +124,28 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as e:
                 self._json(500, {"error": str(e)})
             return
+        if u.path == "/debug":
+            out = {}
+            try:
+                with get_conn() as conn:
+                    with conn.cursor() as cur:
+                        cur.execute("SELECT NOW(), @@global.time_zone, @@session.time_zone")
+                        out["time"] = list(cur.fetchone())
+                        cur.execute("SELECT COUNT(*), MAX(last_updated) FROM states")
+                        out["states_total"] = list(cur.fetchone())
+                        cur.execute(
+                            "SELECT entity_id, COUNT(*), MAX(last_updated) FROM states "
+                            "WHERE entity_id LIKE 'sensor.air%' GROUP BY entity_id "
+                            "ORDER BY MAX(last_updated) DESC LIMIT 15")
+                        out["air_sensors"] = [list(r) for r in cur.fetchall()]
+                        cur.execute(
+                            "SELECT entity_id, state, last_updated FROM states "
+                            "ORDER BY last_updated DESC LIMIT 5")
+                        out["newest_rows"] = [list(r) for r in cur.fetchall()]
+                self._json(200, out)
+            except Exception as e:
+                self._json(500, {"error": str(e)})
+            return
         self._json(404, {"error": "not found"})
 
     def log_message(self, fmt, *args):
