@@ -16,13 +16,30 @@ from urllib.parse import urlparse, parse_qs
 
 import pymysql
 
-DB_HOST = os.environ.get("ADDON_DB_HOST", "mariadb")
-DB_PORT = int(os.environ.get("ADDON_DB_PORT", "3306"))
-DB_USER = os.environ.get("ADDON_DB_USER", "recorder")
-DB_PASS = os.environ.get("ADDON_DB_PASSWORD", "")
-DB_NAME = os.environ.get("ADDON_DB_NAME", "homeassistant")
+def _option(key, default=None):
+    """Read an option: options.json first, then env vars, then default."""
+    for p in ("/config/options.json", "/options.json"):
+        try:
+            with open(p) as f:
+                v = json.load(f).get(key)
+            if v not in (None, ""):
+                return v
+        except Exception:
+            pass
+    for prefix in ("ADDON_", "APP_"):
+        v = os.environ.get(prefix + key.upper())
+        if v not in (None, ""):
+            return v
+    return default
+
+
+DB_HOST = str(_option("db_host", "mariadb"))
+DB_PORT = int(_option("db_port", 3306))
+DB_USER = str(_option("db_user", "recorder"))
+DB_PASS = str(_option("db_password", ""))
+DB_NAME = str(_option("db_name", "homeassistant"))
 LISTEN_PORT = int(os.environ.get("LISTEN_PORT", "8799"))
-ALLOWED_DOMAINS = {d.strip() for d in os.environ.get("ALLOWED_DOMAINS", "sensor").split(",") if d.strip()}
+ALLOWED_DOMAINS = {d.strip() for d in str(_option("allowed_domains", "sensor")).split(",") if d.strip()}
 
 ENTITY_RE = re.compile(r"^[a-z0-9_]+\.[a-z0-9_]+$")
 
