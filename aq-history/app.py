@@ -78,7 +78,7 @@ def fetch_points(entity_id, hours, max_points):
 
 class Handler(BaseHTTPRequestHandler):
     def _json(self, code, obj):
-        body = json.dumps(obj).encode()
+        body = json.dumps(obj, default=str).encode()
         self.send_response(code)
         self.send_header("Content-Type", "application/json")
         self.send_header("Access-Control-Allow-Origin", "*")
@@ -125,23 +125,29 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(500, {"error": str(e)})
             return
         if u.path == "/debug":
+            def s(x):
+                if x is None:
+                    return None
+                if isinstance(x, (datetime,)):
+                    return x.isoformat()
+                return str(x)
             out = {}
             try:
                 with get_conn() as conn:
                     with conn.cursor() as cur:
                         cur.execute("SELECT NOW(), @@global.time_zone, @@session.time_zone")
-                        out["time"] = list(cur.fetchone())
+                        out["time"] = [s(v) for v in cur.fetchone()]
                         cur.execute("SELECT COUNT(*), MAX(last_updated) FROM states")
-                        out["states_total"] = list(cur.fetchone())
+                        out["states_total"] = [s(v) for v in cur.fetchone()]
                         cur.execute(
                             "SELECT entity_id, COUNT(*), MAX(last_updated) FROM states "
                             "WHERE entity_id LIKE 'sensor.air%' GROUP BY entity_id "
                             "ORDER BY MAX(last_updated) DESC LIMIT 15")
-                        out["air_sensors"] = [list(r) for r in cur.fetchall()]
+                        out["air_sensors"] = [[s(v) for v in r] for r in cur.fetchall()]
                         cur.execute(
                             "SELECT entity_id, state, last_updated FROM states "
                             "ORDER BY last_updated DESC LIMIT 5")
-                        out["newest_rows"] = [list(r) for r in cur.fetchall()]
+                        out["newest_rows"] = [[s(v) for v in r] for r in cur.fetchall()]
                 self._json(200, out)
             except Exception as e:
                 self._json(500, {"error": str(e)})
