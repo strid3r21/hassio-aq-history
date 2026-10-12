@@ -18,7 +18,7 @@ import pymysql
 
 def _option(key, default=None):
     """Read an option: options.json first, then env vars, then default."""
-    for p in ("/config/options.json", "/options.json"):
+    for p in ("/data/options.json", "/config/options.json", "/options.json"):
         try:
             with open(p) as f:
                 v = json.load(f).get(key)

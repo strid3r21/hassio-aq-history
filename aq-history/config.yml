@@ -3,7 +3,7 @@ slug: aq_history
 description: >
   Serves Home Assistant recorder (MariaDB) history as JSON for custom
   Lovelace cards (e.g. the aq-room-card 7-day graphs).
-version: "1.0.1"
+version: "1.0.2"
 url: "https://github.com/strid3r21/hassio-aq-history"
 arch:
   - aarch64
